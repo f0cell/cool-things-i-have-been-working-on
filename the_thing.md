@@ -1,5 +1,7 @@
 # the thing
 
+![image](https://github.com/user-attachments/assets/2ad92232-cb24-4dfc-91bb-fbc4ee648d72)
+
 The code you've described, which involves Lua scripting within a Roblox environment, primarily focuses on user interface (UI) manipulation and game mechanics modification. Here's a summary of its functionalities and probable uses:
 
 - **UI Library Usage (Rayfield)**: The code utilizes a UI library named Rayfield, which is not standard in Lua but often developed for game engines like Roblox to simplify UI creation. This library likely provides pre-made UI elements like tabs, buttons, toggles, etc., which can be customized for game settings or player options.
@@ -21,6 +23,9 @@ The code you've described, which involves Lua scripting within a Roblox environm
 In summary, this Lua code within Roblox is likely used for creating user interfaces that control game mechanics, possibly for modding, cheating, or educational purposes within the game development community. It highlights Lua's role in Roblox for scripting game logic, UI, and interactions, which can extend from legitimate game features to potentially unauthorized modifications depending on the context of its use.
 
 ## Test Cases
+
+![image](https://github.com/user-attachments/assets/2cf29bd2-1b38-4aa3-9e6f-9f50fe373134)
+
 
 Certainly! Here are some test cases you could consider for this codebase:
 
