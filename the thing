@@ -1,0 +1,405 @@
+-- Load Sirius Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Create the UI window
+local Window = Rayfield:CreateWindow({
+    Name = "Script by @decryp1 on yt",
+    LoadingTitle = "Booga Booga",
+    LoadingSubtitle = "by @decryp1 on yt",
+    ConfigurationSaving = {
+       Enabled = false,
+       FolderName = nil, -- Leave nil for default folder
+       FileName = "SwingToolUI"
+    }
+})
+
+-- Create the tabs
+
+local MainTab = Window:CreateTab("Main", 4483362458) -- Main actions tab
+local PlayerTab = Window:CreateTab("Player", 4483362458) -- Player manipulations tab
+local MapTab = Window:CreateTab("Map", 4483362458) -- Player manipulations tab
+local ExtraTab = Window:CreateTab("Extra", 4483362458) -- Extra scripts tab
+local CreditsTab = Window:CreateTab("Credits", 4483362458) -- Credits tab
+
+-- Main Tab: Swing Tool related buttons
+MainTab:CreateButton({
+    Name = "Repeat last action",
+    Callback = function()
+        -- Swing Tool logic when button is clicked
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local bufferWriter = require(ReplicatedStorage.Modules.ByteNet.process.bufferWriter)
+        local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
+
+        bufferWriter.alloc(16) -- Allocate space in the buffer
+        bufferWriter.u8(1) -- Assuming 1 represents the swing action
+
+        local bufferData = bufferWriter.export()
+        ByteNetReliable:FireServer(bufferData)
+    end
+})
+
+-- main tab / buffer shit
+local repeatAction = false
+
+MainTab:CreateToggle({
+    Name = "Auto-Repeat last action",
+    CurrentValue = false,
+    Flag = "AutoRepeat",
+    Callback = function(Value)
+        repeatAction = Value
+        if repeatAction then
+            while repeatAction do
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local bufferWriter = require(ReplicatedStorage.Modules.ByteNet.process.bufferWriter)
+                local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
+
+                bufferWriter.alloc(16)
+                bufferWriter.u8(1)
+                local bufferData = bufferWriter.export()
+                ByteNetReliable:FireServer(bufferData)
+
+                wait(0.1)
+            end
+        end
+    end
+})
+
+-- player tab
+local HumanModCons = {}
+local loopWalkspeed = false
+local walkSpeedValue = 16
+
+local function applyWalkSpeed()
+    local player = game.Players.LocalPlayer
+    local character = player.Character or workspace:FindFirstChild(player.Name)
+    local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+
+    local function WalkSpeedChange()
+        if character and humanoid then
+            humanoid.WalkSpeed = walkSpeedValue
+        end
+    end
+
+    WalkSpeedChange()
+
+    HumanModCons.wsLoop = (HumanModCons.wsLoop and HumanModCons.wsLoop:Disconnect() and false) or 
+        humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(WalkSpeedChange)
+
+    HumanModCons.wsCA = (HumanModCons.wsCA and HumanModCons.wsCA:Disconnect() and false) or 
+        player.CharacterAdded:Connect(function(newChar)
+            character, humanoid = newChar, newChar:WaitForChild("Humanoid")
+            WalkSpeedChange()
+            HumanModCons.wsLoop = (HumanModCons.wsLoop and HumanModCons.wsLoop:Disconnect() and false) or 
+                humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(WalkSpeedChange)
+        end)
+end
+
+PlayerTab:CreateSlider({
+    Name = "Walkspeed",
+    Range = {16, 24},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = 16,
+    Flag = "WalkspeedSlider",
+    Callback = function(Value)
+        walkSpeedValue = Value
+        if loopWalkspeed then
+            applyWalkSpeed()
+        end
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Toggle Walkspeed Loop",
+    CurrentValue = false,
+    Flag = "SpeedToggle",
+    Callback = function(Value)
+        loopWalkspeed = Value
+        if loopWalkspeed then
+            applyWalkSpeed()
+        else
+            if HumanModCons.wsLoop then
+                HumanModCons.wsLoop:Disconnect()
+            end
+            if HumanModCons.wsCA then
+                HumanModCons.wsCA:Disconnect()
+            end
+        end
+    end
+})
+
+PlayerTab:CreateButton({
+    Name = "Mountain Climber / Anti Slip",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or workspace:FindFirstChild(player.Name)
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.MaxSlopeAngle = 90
+            print("MaxSlopeAngle set to 90")
+        else
+            print("Humanoid not found!")
+        end
+    end
+})
+
+PlayerTab:CreateToggle({
+    Name = "Float / Tall",
+    CurrentValue = false,
+    Flag = "FloatToggle",
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or workspace:FindFirstChild(player.Name)
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            if Value then
+                humanoid.HipHeight = 6.5
+            else
+                humanoid.HipHeight = 2
+            end
+        else
+            print("Humanoid not found!")
+        end
+    end
+})
+
+PlayerTab:CreateToggle({
+    Name = "Reverse Float / Short",
+    CurrentValue = false,
+    Flag = "FloatToggle",
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or workspace:FindFirstChild(player.Name)
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            if Value then
+                humanoid.HipHeight = 0.1
+            else
+                humanoid.HipHeight = 2
+            end
+        else
+            print("Humanoid not found!")
+        end
+    end
+})
+
+local dockCollisionDisabled = false
+local hutDoorCollisionDisabled = false
+
+-- Function to enable/disable collisions for Docks
+local function toggleDockCollisionsLoop()
+    while true do
+        for _, obj in pairs(workspace.Deployables:GetChildren()) do
+            if obj.Name == "Dock" or obj.Name == "Dock Rubble" then
+                for _, part in pairs(obj:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = not dockCollisionDisabled -- Toggle collision based on dockCollisionDisabled state
+                    end
+                end
+            end
+        end
+        wait(0.5) -- Recheck every 0.5 seconds
+    end
+end
+
+-- Function to enable/disable collisions for Hut Doors based on the DoorButton value
+local function toggleHutDoorCollisionsLoop()
+    while true do
+        for _, obj in pairs(workspace.Deployables:GetChildren()) do
+            if obj.Name == "Big Ol' Hut" then
+                local door = obj:FindFirstChild("Door", true) -- Search for Door inside the hut
+                local doorButton = obj:FindFirstChild("Button", true) and obj.Button:FindFirstChild("DoorButton")
+                
+                if door and door:IsA("BasePart") and doorButton and doorButton:IsA("BoolValue") then
+                    if hutDoorCollisionDisabled then
+                        door.CanCollide = false -- Disable collisions when the toggle is on
+                    else
+                        -- Check the DoorButton state to determine whether to enable collisions
+                        if doorButton.Value == true then
+                            door.CanCollide = true -- Door is closed, enable collisions
+                        else
+                            door.CanCollide = false -- Door is open, keep collisions disabled
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.5) -- Recheck every 0.5 seconds
+    end
+end
+
+-- Toggle for Dock Collisions
+MapTab:CreateToggle({
+    Name = "Noclip Docks",
+    CurrentValue = false,
+    Flag = "DockCollisionToggle",
+    Callback = function(Value)
+        dockCollisionDisabled = Value -- Set the toggle state for Dock collision
+    end
+})
+
+-- Toggle for Hut Door Collisions
+MapTab:CreateToggle({
+    Name = "Noclip Hut Doors",
+    CurrentValue = false,
+    Flag = "HutDoorCollisionToggle",
+    Callback = function(Value)
+        hutDoorCollisionDisabled = Value -- Set the toggle state for Hut door collision
+    end
+})
+
+-- Start both loops to continuously check the state of the toggles
+spawn(toggleDockCollisionsLoop)
+spawn(toggleHutDoorCollisionsLoop)
+
+-- extra tab
+ExtraTab:CreateButton({
+    Name = "Infinite Yield (admin commands)",
+    Callback = function()
+        loadstring(game:HttpGet(('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'),true))()
+    end
+})
+
+local ESPEnabled = false
+local ESPObjects = {}
+local ChamObjects = {}
+
+local function getTribeName(brickColor)
+    -- Define tribe colors and names based on BrickColor
+    local tribes = {
+        [BrickColor.new("Ghost grey")] = "White Tribe",
+        [BrickColor.new("Pine Cone")] = "No Tribe",
+        [BrickColor.new("Hot pink")] = "Violet Tribe",
+        [BrickColor.new("Deep orange")] = "Yellow Tribe",
+        [BrickColor.new(Color3.fromRGB(255, 170, 0))] = "Orange Tribe", -- Custom Orange
+        [BrickColor.new(Color3.fromRGB(255, 200, 0))] = "Yellow Tribe", -- Custom Yellow
+        [BrickColor.new("Really red")] = "Red Tribe",
+        [BrickColor.new("Lime green")] = "Green Tribe",
+        [BrickColor.new("Dark taupe")] = "Grey Tribe",
+        [BrickColor.new("Really black")] = "Black Tribe",
+        [BrickColor.new("Bright blue")] = "Blue Tribe",
+        [BrickColor.new("CGA brown")] = "Olive Tribe"
+    }
+    return tribes[brickColor] or "Unknown Tribe"
+end
+
+local function createESP(player)
+    if player == game.Players.LocalPlayer then return end -- Don't show ESP for yourself
+    local character = player.Character
+    if not character or not character:FindFirstChild("Head") then return end
+
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ESP"
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.Size = UDim2.new(0, 100, 0, 25) 
+    BillboardGui.StudsOffset = Vector3.new(0, 2, 0)
+    BillboardGui.Adornee = character:FindFirstChild("Head")
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Parent = BillboardGui
+    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextStrokeTransparency = 0.5
+    TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255) 
+    TextLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0) 
+    TextLabel.TextScaled = true
+    TextLabel.Font = Enum.Font.SourceSansBold
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Chams"
+    highlight.Parent = character
+    highlight.Adornee = character
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.OutlineTransparency = 0
+    highlight.FillTransparency = 0.5
+    local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    local torsoColor
+    if torso and torso:IsA("BasePart") then
+        torsoColor = torso.BrickColor
+        highlight.FillColor = torso.BrickColor.Color
+        highlight.OutlineColor = torso.BrickColor.Color 
+    else
+        torsoColor = BrickColor.new("Ghost grey") 
+        highlight.FillColor = torsoColor.Color
+        highlight.OutlineColor = torsoColor.Color
+    end
+    local function updateESP()
+        if character and character:FindFirstChild("Head") then
+            local distance = math.floor((game.Players.LocalPlayer.Character.Head.Position - character.Head.Position).Magnitude)
+            local tribeName = getTribeName(torsoColor)
+            TextLabel.Text = player.Name .. " | " .. tostring(distance) .. " studs | " .. tribeName
+        end
+    end
+    BillboardGui.Parent = character:FindFirstChild("Head")
+    table.insert(ESPObjects, BillboardGui)
+    table.insert(ChamObjects, highlight)
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if ESPEnabled then
+            updateESP()
+        end
+    end)
+end
+local function removeESP(player)
+    if player == game.Players.LocalPlayer then return end -- Skip removing your own ESP
+    local character = player.Character
+    if character then
+        local head = character:FindFirstChild("Head")
+        if head then
+            for _, child in pairs(head:GetChildren()) do
+                if child:IsA("BillboardGui") then
+                    child:Destroy() 
+                end
+            end
+        end
+        -- remove chams
+        local cham = character:FindFirstChild("Chams")
+        if cham then cham:Destroy() end
+    end
+end
+local function toggleESP(state)
+    ESPEnabled = state
+    if ESPEnabled then
+        
+        for _, player in pairs(game.Players:GetPlayers()) do
+            createESP(player)
+        end
+        
+        game.Players.PlayerAdded:Connect(createESP)
+        game.Players.PlayerRemoving:Connect(removeESP)
+    else
+        
+        for _, player in pairs(game.Players:GetPlayers()) do
+            removeESP(player)
+        end
+    end
+end
+
+ExtraTab:CreateToggle({
+    Name = "Player ESP + Chams",
+    CurrentValue = false,
+    Flag = "PlayerESPToggle",
+    Callback = function(Value)
+        toggleESP(Value)
+    end
+})
+
+
+local xrayEnabled = false
+
+local function xray()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v.Parent:FindFirstChildWhichIsA("Humanoid") and not v.Parent.Parent:FindFirstChildWhichIsA("Humanoid") then
+            v.LocalTransparencyModifier = xrayEnabled and 0.5 or 0
+        end
+    end
+end
+
+ExtraTab:CreateToggle({
+    Name = "X-ray (turn on and off again to X-Ray new parts)",
+    CurrentValue = false, 
+    Flag = "XrayToggle", 
+    Callback = function(Value)
+        xrayEnabled = Value 
+        xray()
+    end
+})
+
+CreditsTab:CreateSection("Script made by @decryp1 on YouTube")
